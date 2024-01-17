@@ -20,17 +20,18 @@ urllib3.disable_warnings()
 print('当前版本12.1')
 print('作者ikun、wxy1343')
 print('声明:请勿用于商业用途,否则后果自负')
-print('增加功能: BlankTMing/ManifestAutoUpdate自定义Steam路径')
+print('增加功能: 自定义Steam路径')
 
 default = {
     'github_persoal_token': '' ,
-    'github_persoal_token_example': 'Bearer your_github_persoal_token',
-    'customize_steam_path': 'Your steam path, generally obtained automatically.',
+    'github_persoal_token_example': 'Bearer 你生成的Github个人访问Token',
+    'customize_steam_path': '',
+    'customize_steam_path_example': '填写Steam路径，一般为自动获取,如：C:/Program Files(x86)/steam',
 }
 
 def gen_config():
     with open("./appsettings.yaml", "w", encoding="utf-8") as f:
-        f.write(yaml.dump(default))
+        f.write(yaml.dump(default, allow_unicode=True))
         f.close()
         if (not os.getenv('build')):
             print('首次启动或配置文件被删除，已创建默认配置文件')
@@ -38,11 +39,11 @@ def gen_config():
     
 def load_config():
     if os.path.exists('appsettings.yaml'):
-        with open('appsettings.yaml', 'r') as config_file:
+        with open('appsettings.yaml', 'r', encoding="utf-8") as config_file:
             config = yaml.safe_load(config_file)
     else:
         gen_config()
-        with open('appsettings.yaml', 'r') as config_file:
+        with open('appsettings.yaml', 'r', encoding="utf-8") as config_file:
             config = yaml.safe_load(config_file)
 
     return config
@@ -50,16 +51,12 @@ def load_config():
 lock = Lock()
 
 def get(branch, path):
-    url_list = [f'https://github.moeyy.xyz/https://raw.githubusercontent.com/lls7890/Repository/{branch}/{path}',
-                f'https://github.moeyy.xyz/https://raw.githubusercontent.com/isKoi/Manifest-AutoUpdate/{branch}/{path}',
-                f'https://githubapi.ikunshare.link/https://raw.githubusercontent.com/lls7890/Repository/{branch}/{path}',
-                f'https://githubapi.ikunshare.link/https://raw.githubusercontent.com/isKoi/Manifest-AutoUpdate/{branch}/{path}',
-                f'https://github.moeyy.xyz/https://raw.githubusercontent.com/qwq-xinkeng/awaqwqmain/{branch}/{path}',
-                f'https://githubapi.ikunshare.link/https://raw.githubusercontent.com/qwq-xinkeng/awaqwqmain/{branch}/{path}',
-                f'https://github.moeyy.xyz/https://raw.githubusercontent.com/liaofulong/Manifest-AutoUpdate/{branch}/{path}',
-                f'https://githubapi.ikunshare.link/https://raw.githubusercontent.com/liaofulong/Manifest-AutoUpdate/{branch}/{path}',
-                f'https://github.moeyy.xyz/https://raw.githubusercontent.com/BlankTMing/ManifestAutoUpdate/{branch}/{path}',
-                f'https://githubapi.ikunshare.link/https://raw.githubusercontent.com/BlankTMing/ManifestAutoUpdate/{branch}/{path}']
+    url_list = [f'https://mirror.ghproxy.com/https://raw.githubusercontent.com/{repos}/{branch}/{path}',
+                f'https://github.moeyy.xyz/https://raw.githubusercontent.com/{repos}/{branch}/{path}',
+                f'https://githubapi.ikunshare.link/https://raw.githubusercontent.com/{repos}/{branch}/{path}',
+                f'https://gh.api.99988866.xyz/https://raw.githubusercontent.com/{repos}/{branch}/{path}',
+                f'https://raw.githubusercontent.com/{repos}/{branch}/{path}',
+                f'https://raw.staticdn.net/https://raw.githubusercontent.com/{repos}/{branch}/{path}']
 
     retry = 30
     while True:
@@ -76,7 +73,7 @@ def get(branch, path):
                     raise
 
 
-def get_manifest(branch, path, steam_path: Path, app_id=None):
+def get_manifest(branch, path, steam_path: Path):
     try:
         if path.endswith('.manifest'):
             depot_cache_path = steam_path / 'depotcache'
@@ -101,10 +98,9 @@ def get_manifest(branch, path, steam_path: Path, app_id=None):
             depots_config = vdf.loads(content.decode(encoding='utf-8'))
             if depotkey_merge(steam_path / 'config' / 'config.vdf', depots_config):
                 print('合并config.vdf成功')
-            if stool_add(
-                    [(depot_id, '1', depots_config['depots'][depot_id]['DecryptionKey'])
-                     for depot_id in depots_config['depots']]):
-                print('导入steamtools成功')    
+            if stool_add([(depot_id, '1', depots_config['depots'][depot_id]['DecryptionKey'])
+                           for depot_id in depots_config['depots']]):
+                print('检测到Steamtools,导入配置成功')
     except KeyboardInterrupt:
         raise
     except:
@@ -116,7 +112,7 @@ def get_manifest(branch, path, steam_path: Path, app_id=None):
 def depotkey_merge(config_path, depots_config):
     if not config_path.exists():
         with lock:
-            print('config.vdf不存在')
+            print('密钥文件不存在')
         return
     with open(config_path, encoding='utf-8') as f:
         config = vdf.load(f)
@@ -140,7 +136,6 @@ def stool_add(depot_list):
     with open(lua_filepath, "w", encoding="utf-8") as lua_file:
         lua_file.write(lua_content)
     print(f"Lua文件生成成功: {lua_filepath}")
-    print("steamtools导入成功")
     luapacka_path = steam_path / "config" / "stplug-in" / "luapacka.exe"
     subprocess.run([str(luapacka_path), str(lua_filepath)])
     os.remove(lua_filepath)
@@ -153,7 +148,7 @@ def get_steam_path():
     steam_path = Path(winreg.QueryValueEx(key, 'SteamPath')[0]) or customize_steam_path
     return steam_path
 
-def main(app_id):
+def check_github_api_rate_limit():
     config = load_config()
     github_persoal_token = config.get('github_persoal_token', '')
     headers = {'Authorization': f'{github_persoal_token}'}
@@ -166,38 +161,33 @@ def main(app_id):
         reset_time_formatted = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(reset_time))
         print(f'剩余请求次数: {remaining_requests}')
 
-        if remaining_requests == 0:
-            print(f'GitHub API 请求数已用尽，将在 {reset_time_formatted} 重置')
-            return True
+    if remaining_requests == 0:
+        print(f'GitHub API 请求数已用尽，将在 {reset_time_formatted} 重置')
+        return True
 
-    repos = [
-        'https://api.github.com/repos/BlankTMing/ManifestAutoUpdate',
-        'https://api.github.com/repos/lls7890/Repository',
-        'https://api.github.com/repos/isKoi/Manifest-AutoUpdate',
-        'https://api.github.com/repos/qwq-xinkeng/awaqwqmain',
-        'https://api.github.com/repos/liaofulong/Manifest-AutoUpdate'
-    ]
-
+def main(app_id):
+    config = load_config()
+    github_persoal_token = config.get('github_persoal_token', '')
+    headers = {'Authorization': f'{github_persoal_token}'}
     latest_date = None
     selected_repo = None
-
-    for repo_url in repos:
-        url = f'{repo_url}/branches/{app_id}'
-
+    if check_github_api_rate_limit():
+        print('检查Github请求数完成')
+    for repo in repos:
+        url = f'https://api.github.com/repos/{repo}/branches/{app_id}'
         try:
             r = requests.get(url, headers=headers, verify=False)
             if 'commit' in r.json():
                 date = r.json()['commit']['commit']['author']['date']
                 if latest_date is None or date > latest_date:
                     latest_date = date
-                    selected_repo = repo_url
+                    selected_repo = repo
         except KeyboardInterrupt:
             exit()
         except requests.exceptions.RequestException as e:
             print(f"An error occurred: {e}")
-
     if selected_repo:
-        print(f'Selected Repo: {selected_repo}')
+        print(f'选择清单仓库: {selected_repo}')
         url = f'{selected_repo}/branches/{app_id}'
         try:
             r = requests.get(url, verify=False)
@@ -207,7 +197,7 @@ def main(app_id):
                 date = r.json()['commit']['commit']['author']['date']
                 r = requests.get(url,verify=False)
                 if 'tree' in r.json():
-                    stool_add([(app_id, 1 , "None")])
+                    stool_add([(app_id, 1, "None")])
                     result_list = []
                     with Pool(32) as pool:
                         pool: ThreadPool
@@ -223,7 +213,7 @@ def main(app_id):
                                 pool.terminate()
                             raise
                     if all([result.successful() for result in result_list]):
-                        msg2 = messagebox.showwarning(title="警告", message="本软件为免费软件")
+                        msg2 = messagebox.showwarning(title="警告", message="本软件为免费软件,请勿用于商业用途,发现请mail to: ikun0014@qq.com")
                         print(msg2)
                         print(f'清单最新更新时间:{date}')
                         print(f'入库成功: {app_id}')
@@ -233,7 +223,6 @@ def main(app_id):
             exit()
         except requests.exceptions.RequestException as e:
             print(f"An error occurred: {e}")
-
     print(f'入库失败: {app_id}')
     return False
 
@@ -259,15 +248,23 @@ def app(app_path):
                     depots_config = vdf.loads(f.read())
                 if depotkey_merge(steam_path / 'config' / 'config.vdf', depots_config):
                     print('合并config.vdf成功')
-                if stool_add([(depot_id, '1',
+                if os.path.exists(steam_path / 'hid.dll'):
+                   if stool_add([(depot_id, '1',
                                depots_config['depots'][depot_id]['DecryptionKey']) for depot_id in
                               depots_config['depots']]):
-                    print('导入steamtools成功')
+                    print('检测到Steamtools,导入配置成功')
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-a', '--app-id')
 parser.add_argument('-p', '--app-path')
 args = parser.parse_args()
+repos = [
+    'BlankTMing/ManifestAutoUpdate',
+    'lls7890/Repository',
+    'isKoi/Manifest-AutoUpdate',
+    'repos/qwq-xinkeng/awaqwqmain',
+    'Onekey-Project/Manifest-AutoUpdate'
+]
 if __name__ == '__main__':
     try:
         load_config()
