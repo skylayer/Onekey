@@ -9,7 +9,6 @@ import traceback
 import subprocess
 import requests
 import yaml
-from tkinter import messagebox
 from pathlib import Path
 from multiprocessing.pool import ThreadPool
 from multiprocessing.dummy import Pool, Lock
@@ -17,10 +16,10 @@ from requests.packages import urllib3
 
 urllib3.disable_warnings()
 
-print('当前版本12.1')
+print('当前版本12.2')
 print('作者ikun、wxy1343')
 print('声明:请勿用于商业用途,否则后果自负')
-print('增加功能: 自定义Steam路径')
+print('杂物事: 优化代码与配置文件')
 
 default = {
     'github_persoal_token': '' ,
@@ -51,14 +50,23 @@ def load_config():
 lock = Lock()
 
 def get(branch, path):
-    url_list = [f'https://mirror.ghproxy.com/https://raw.githubusercontent.com/{repos}/{branch}/{path}',
-                f'https://github.moeyy.xyz/https://raw.githubusercontent.com/{repos}/{branch}/{path}',
-                f'https://githubapi.ikunshare.link/https://raw.githubusercontent.com/{repos}/{branch}/{path}',
-                f'https://gh.api.99988866.xyz/https://raw.githubusercontent.com/{repos}/{branch}/{path}',
-                f'https://raw.githubusercontent.com/{repos}/{branch}/{path}',
-                f'https://raw.staticdn.net/https://raw.githubusercontent.com/{repos}/{branch}/{path}']
+    url_list = [f'https://github.moeyy.xyz/https://raw.githubusercontent.com/BlankTMing/ManifestAutoUpdate/{branch}/{path}',
+                f'https://gh.api.99988866.xyz/https://raw.githubusercontent.com/BlankTMing/ManifestAutoUpdate/{branch}/{path}',
+                f'https://raw.staticdn.net/https://raw.githubusercontent.com/BlankTMing/ManifestAutoUpdate/{branch}/{path}',
+                f'https://github.moeyy.xyz/https://raw.githubusercontent.com/lls7890/Repository/{branch}/{path}',
+                f'https://gh.api.99988866.xyz/https://raw.githubusercontent.com/lls7890/Repository/{branch}/{path}',
+                f'https://raw.staticdn.net/https://raw.githubusercontent.com/lls7890/Repository/{branch}/{path}',
+                f'https://github.moeyy.xyz/https://raw.githubusercontent.com/isKoi/Manifest-AutoUpdate/{branch}/{path}',
+                f'https://gh.api.99988866.xyz/https://raw.githubusercontent.com/isKoi/Manifest-AutoUpdate/{branch}/{path}',
+                f'https://raw.staticdn.net/https://raw.githubusercontent.com/isKoi/Manifest-AutoUpdate/{branch}/{path}',
+                f'https://github.moeyy.xyz/https://raw.githubusercontent.com/qwq-xinkeng/awaqwqmain/{branch}/{path}',
+                f'https://raw.staticdn.net/https://raw.githubusercontent.com/qwq-xinkeng/awaqwqmain/{branch}/{path}',
+                f'https://gh.api.99988866.xyz/https://raw.githubusercontent.com/qwq-xinkeng/awaqwqmain/{branch}/{path}',
+                f'https://github.moeyy.xyz/https://raw.githubusercontent.com/Onekey-Project/Manifest-AutoUpdate/{branch}/{path}',
+                f'https://gh.api.99988866.xyz/https://raw.githubusercontent.com/Onekey-Project/Manifest-AutoUpdate/{branch}/{path}',
+                f'https://raw.staticdn.net/https://raw.githubusercontent.com/Onekey-Project/Manifest-AutoUpdate/{branch}/{path}']
 
-    retry = 30
+    retry = 3
     while True:
         for url in url_list:
             try:
@@ -73,7 +81,7 @@ def get(branch, path):
                     raise
 
 
-def get_manifest(branch, path, steam_path: Path):
+def get_manifest(branch, path, steam_path: Path, app_id=None):
     try:
         if path.endswith('.manifest'):
             depot_cache_path = steam_path / 'depotcache'
@@ -98,9 +106,10 @@ def get_manifest(branch, path, steam_path: Path):
             depots_config = vdf.loads(content.decode(encoding='utf-8'))
             if depotkey_merge(steam_path / 'config' / 'config.vdf', depots_config):
                 print('合并config.vdf成功')
-            if stool_add([(depot_id, '1', depots_config['depots'][depot_id]['DecryptionKey'])
-                           for depot_id in depots_config['depots']]):
-                print('检测到Steamtools,导入配置成功')
+            if stool_add(
+                    [(depot_id, '1', depots_config['depots'][depot_id]['DecryptionKey'])
+                     for depot_id in depots_config['depots']]):
+                print('导入steamtools成功')    
     except KeyboardInterrupt:
         raise
     except:
@@ -135,7 +144,6 @@ def stool_add(depot_list):
     lua_filepath = steam_path / "config" / "stplug-in" / lua_filename
     with open(lua_filepath, "w", encoding="utf-8") as lua_file:
         lua_file.write(lua_content)
-    print(f"Lua文件生成成功: {lua_filepath}")
     luapacka_path = steam_path / "config" / "stplug-in" / "luapacka.exe"
     subprocess.run([str(luapacka_path), str(lua_filepath)])
     os.remove(lua_filepath)
@@ -188,7 +196,7 @@ def main(app_id):
             print(f"An error occurred: {e}")
     if selected_repo:
         print(f'选择清单仓库: {selected_repo}')
-        url = f'{selected_repo}/branches/{app_id}'
+        url = f'https://api.github.com/repos/{selected_repo}/branches/{app_id}'
         try:
             r = requests.get(url, verify=False)
             if 'commit' in r.json():
@@ -213,8 +221,6 @@ def main(app_id):
                                 pool.terminate()
                             raise
                     if all([result.successful() for result in result_list]):
-                        msg2 = messagebox.showwarning(title="警告", message="本软件为免费软件,请勿用于商业用途,发现请mail to: ikun0014@qq.com")
-                        print(msg2)
                         print(f'清单最新更新时间:{date}')
                         print(f'入库成功: {app_id}')
                         print('重启steam生效')
@@ -248,11 +254,10 @@ def app(app_path):
                     depots_config = vdf.loads(f.read())
                 if depotkey_merge(steam_path / 'config' / 'config.vdf', depots_config):
                     print('合并config.vdf成功')
-                if os.path.exists(steam_path / 'hid.dll'):
-                   if stool_add([(depot_id, '1',
+                if stool_add([(depot_id, '1',
                                depots_config['depots'][depot_id]['DecryptionKey']) for depot_id in
                               depots_config['depots']]):
-                    print('检测到Steamtools,导入配置成功')
+                    print('导入steamtools成功')
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-a', '--app-id')
@@ -262,7 +267,7 @@ repos = [
     'BlankTMing/ManifestAutoUpdate',
     'lls7890/Repository',
     'isKoi/Manifest-AutoUpdate',
-    'repos/qwq-xinkeng/awaqwqmain',
+    'qwq-xinkeng/awaqwqmain',
     'Onekey-Project/Manifest-AutoUpdate'
 ]
 if __name__ == '__main__':
