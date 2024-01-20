@@ -1,4 +1,0 @@
-customize_steam_path: ''
-customize_steam_path_example: 填写Steam路径，一般为自动获取,如：C:/Program Files(x86)/steam
-github_persoal_token: ''
-github_persoal_token_example: Bearer 你生成的Github个人访问Token
