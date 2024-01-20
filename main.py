@@ -9,6 +9,8 @@ import traceback
 import subprocess
 import requests
 import yaml
+import colorlog
+import logging
 from pathlib import Path
 from multiprocessing.pool import ThreadPool
 from multiprocessing.dummy import Pool, Lock
@@ -16,10 +18,29 @@ from requests.packages import urllib3
 
 urllib3.disable_warnings()
 
-print('当前版本12.2')
-print('作者ikun、wxy1343')
-print('声明:请勿用于商业用途,否则后果自负')
-print('杂物事: 优化代码与配置文件')
+def init_log():
+    logger = logging.getLogger('Onekey')
+    logger.setLevel(logging.DEBUG)
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(logging.DEBUG)
+    fmt_string = '%(log_color)s[%(name)s][%(levelname)s]%(message)s'
+    # black red green yellow blue purple cyan 和 white
+    log_colors = {
+        'DEBUG': 'white',
+        'INFO': 'green',
+        'WARNING': 'yellow',
+        'ERROR': 'red',
+        'CRITICAL': 'purple'
+        }
+    fmt = colorlog.ColoredFormatter(fmt_string, log_colors=log_colors)
+    stream_handler.setFormatter(fmt)
+    logger.addHandler(stream_handler)
+    return logger
+
+log = init_log()
+log.info('当前版本12.3')
+log.info('本程序Github仓库:https://github.com/Onekey-Project/Onekey')
+log.warning('声明:请勿用于商业用途,否则后果自负')
 
 default = {
     'github_persoal_token': '' ,
@@ -74,10 +95,10 @@ def get(branch, path):
                 if r.status_code == 200:
                     return r.content
             except requests.exceptions.ConnectionError:
-                print(f'获取失败: {path}')
+                log.error(f'获取失败: {path}')
                 retry -= 30
                 if not retry:
-                    print(f'超过最大重试次数: {path}')
+                    log.warning(f'超过最大重试次数: {path}')
                     raise
 
 
@@ -91,25 +112,25 @@ def get_manifest(branch, path, steam_path: Path, app_id=None):
             save_path = depot_cache_path / path
             if save_path.exists():
                 with lock:
-                    print(f'已存在清单: {path}')
+                    log.warning(f'已存在清单: {path}')
                 return
             content = get(branch, path)
             with lock:
-                print(f'清单下载成功: {path}')
+                log.info(f'清单下载成功: {path}')
             with save_path.open('wb') as f:
                 f.write(content)
         if path.endswith('.vdf') and path not in ['appinfo.vdf']:
             if path == 'config.vdf' or 'Key.vdf':
                 content = get(branch, path)
             with lock:
-                print(f'密钥下载成功: {path}')
+                log.info(f'密钥下载成功: {path}')
             depots_config = vdf.loads(content.decode(encoding='utf-8'))
             if depotkey_merge(steam_path / 'config' / 'config.vdf', depots_config):
-                print('合并config.vdf成功')
+                log.info('合并config.vdf成功')
             if stool_add(
                     [(depot_id, '1', depots_config['depots'][depot_id]['DecryptionKey'])
                      for depot_id in depots_config['depots']]):
-                print('导入steamtools成功')    
+                log.info('导入steamtools成功')    
     except KeyboardInterrupt:
         raise
     except:
@@ -121,7 +142,7 @@ def get_manifest(branch, path, steam_path: Path, app_id=None):
 def depotkey_merge(config_path, depots_config):
     if not config_path.exists():
         with lock:
-            print('密钥文件不存在')
+            log.error('密钥文件不存在')
         return
     with open(config_path, encoding='utf-8') as f:
         config = vdf.load(f)
@@ -167,10 +188,10 @@ def check_github_api_rate_limit():
         remaining_requests = rate_limit['remaining']
         reset_time = rate_limit['reset']
         reset_time_formatted = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(reset_time))
-        print(f'剩余请求次数: {remaining_requests}')
+        log.info(f'剩余请求次数: {remaining_requests}')
 
     if remaining_requests == 0:
-        print(f'GitHub API 请求数已用尽，将在 {reset_time_formatted} 重置')
+        log.warning(f'GitHub API 请求数已用尽，将在 {reset_time_formatted} 重置')
         return True
 
 def main(app_id):
@@ -180,7 +201,7 @@ def main(app_id):
     latest_date = None
     selected_repo = None
     if check_github_api_rate_limit():
-        print('检查Github请求数完成')
+        log.info('检查Github请求数完成')
     for repo in repos:
         url = f'https://api.github.com/repos/{repo}/branches/{app_id}'
         try:
@@ -193,9 +214,9 @@ def main(app_id):
         except KeyboardInterrupt:
             exit()
         except requests.exceptions.RequestException as e:
-            print(f"An error occurred: {e}")
+            log.error(f"An error occurred: {e}")
     if selected_repo:
-        print(f'选择清单仓库: {selected_repo}')
+        log.info(f'选择清单仓库: {selected_repo}')
         url = f'https://api.github.com/repos/{selected_repo}/branches/{app_id}'
         try:
             r = requests.get(url, verify=False)
@@ -221,15 +242,15 @@ def main(app_id):
                                 pool.terminate()
                             raise
                     if all([result.successful() for result in result_list]):
-                        print(f'清单最新更新时间:{date}')
-                        print(f'入库成功: {app_id}')
-                        print('重启steam生效')
+                        log.info(f'清单最新更新时间:{date}')
+                        log.info(f'入库成功: {app_id}')
+                        log.info('重启steam生效')
                         return True
         except KeyboardInterrupt:
             exit()
         except requests.exceptions.RequestException as e:
-            print(f"An error occurred: {e}")
-    print(f'入库失败: {app_id}')
+            log.error(f"An error occurred: {e}")
+    log.error(f'入库失败: {app_id}')
     return False
 
 def app(app_path):
@@ -248,20 +269,21 @@ def app(app_path):
             if file.suffix == '.manifest':
                 depot_cache_path = steam_path / 'depotcache'
                 shutil.copy(file, depot_cache_path)
-                print(f'导入清单成功: {file.name}')
+                log.info(f'导入清单成功: {file.name}')
             elif file.name == 'config.vdf' or 'Key.vdf':
                 with file.open('r', encoding='utf-8') as f:
                     depots_config = vdf.loads(f.read())
                 if depotkey_merge(steam_path / 'config' / 'config.vdf', depots_config):
-                    print('合并config.vdf成功')
+                    log.info('合并config.vdf成功')
                 if stool_add([(depot_id, '1',
                                depots_config['depots'][depot_id]['DecryptionKey']) for depot_id in
                               depots_config['depots']]):
-                    print('导入steamtools成功')
+                    log.info('导入steamtools成功')
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-a', '--app-id')
 parser.add_argument('-p', '--app-path')
+parser.add_argument('-r', '--repo')
 args = parser.parse_args()
 repos = [
     'BlankTMing/ManifestAutoUpdate',
@@ -269,7 +291,7 @@ repos = [
     'isKoi/Manifest-AutoUpdate',
     'qwq-xinkeng/awaqwqmain',
     'Onekey-Project/Manifest-AutoUpdate'
-]
+] or args.repo
 if __name__ == '__main__':
     try:
         load_config()
