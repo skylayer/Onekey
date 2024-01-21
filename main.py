@@ -38,8 +38,9 @@ def init_log():
     return logger
 
 log = init_log()
-log.info('当前版本12.3')
+log.info('当前版本12.3 patch 2')
 log.info('本程序Github仓库:https://github.com/Onekey-Project/Onekey')
+log.info('温馨提示：App ID可以在Steam商店页面或SteamDB找到')
 log.warning('声明:请勿用于商业用途,否则后果自负')
 
 default = {
@@ -126,7 +127,7 @@ def get_manifest(branch, path, steam_path: Path, app_id=None):
                 log.info(f'密钥下载成功: {path}')
             depots_config = vdf.loads(content.decode(encoding='utf-8'))
             if depotkey_merge(steam_path / 'config' / 'config.vdf', depots_config):
-                log.info('合并config.vdf成功')
+                log.info('合并密钥成功')
             if stool_add(
                     [(depot_id, '1', depots_config['depots'][depot_id]['DecryptionKey'])
                      for depot_id in depots_config['depots']]):
