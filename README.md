@@ -103,4 +103,4 @@ ikun0014+qq.com
 
 ## 交流群
 [Telegram](https://t.me/OnekeyProject)  
-<a target="_blank" href="https://qm.qq.com/cgi-bin/qm/qr?k=LIGCgexM7pKDdAzOYYt48-q3MKEJ86zQ&jump_from=webapi&authKey=phTpxY5oXbshlXPnxvgE1fgEq5jORww2Z77Wytdlfzc+gllkXNOq8SZYXgdVWjLU"><img border="0" src="//pub.idqqimg.com/wpa/images/group.png" alt="QQ" title="QQ"></a>
+[QQ](https://qm.qq.com/cgi-bin/qm/qr?k=LIGCgexM7pKDdAzOYYt48-q3MKEJ86zQ&jump_from=webapi&authKey=phTpxY5oXbshlXPnxvgE1fgEq5jORww2Z77Wytdlfzc+gllkXNOq8SZYXgdVWjLU)
