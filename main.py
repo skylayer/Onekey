@@ -54,7 +54,7 @@ def gen_config():
         f.write(yaml.dump(default, allow_unicode=True))
         f.close()
         if (not os.getenv('build')):
-            print('首次启动或配置文件被删除，已创建默认配置文件')
+            log.warning('首次启动或配置文件被删除，已创建默认配置文件')
         return gen_config
     
 def load_config():
