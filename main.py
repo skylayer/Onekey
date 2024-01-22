@@ -38,10 +38,16 @@ def init_log():
     return logger
 
 log = init_log()
-log.info('当前版本12.3 patch 2')
+print('\033[0;32;40m _____   __   _   _____   _   _    _____  __    __\033[0m')
+print('\033[0;32;40m/  _  \ |  \ | | | ____| | | / /  | ____| \ \  / /\033[0m')
+print('\033[0;32;40m| | | | |   \| | | |__   | |/ /   | |_  _  \ \/ /\033[0m')
+print('\033[0;32;40m| | | | | |\   | |  __|  | |\ \   |  __|    \  / ')
+print('\033[0;32;40m| |_| | | | \  | | |___  | | \ \  | |___    / /\033[0m')
+print('\033[0;32;40m\_____/ |_|  \_| |_____| |_|  \_\ |_____|  /_/     \033[0m')
+log.info('作者ikun')
+log.info('当前版本12.4')
 log.info('本程序Github仓库:https://github.com/Onekey-Project/Onekey')
 log.info('温馨提示：App ID可以在Steam商店页面或SteamDB找到')
-log.warning('声明:请勿用于商业用途,否则后果自负')
 
 default = {
     'github_persoal_token': '' ,
@@ -131,7 +137,9 @@ def get_manifest(branch, path, steam_path: Path, app_id=None):
             if stool_add(
                     [(depot_id, '1', depots_config['depots'][depot_id]['DecryptionKey'])
                      for depot_id in depots_config['depots']]):
-                log.info('导入steamtools成功')    
+                log.info('导入Steamtools Depot成功')    
+            if greenluma_add([int(i) for i in depots_config['depots'] if i.isdecimal()]):
+                log.info('导入Greenluma Depot配置成功')
     except KeyboardInterrupt:
         raise
     except:
@@ -169,6 +177,34 @@ def stool_add(depot_list):
     luapacka_path = steam_path / "config" / "stplug-in" / "luapacka.exe"
     subprocess.run([str(luapacka_path), str(lua_filepath)])
     os.remove(lua_filepath)
+    return True
+
+def greenluma_add(depot_id_list):
+    steam_path = get_steam_path()
+    app_list_path = steam_path / 'AppList'
+    if app_list_path.is_file():
+        app_list_path.unlink(missing_ok=True)
+    if not app_list_path.is_dir():
+        app_list_path.mkdir(parents=True, exist_ok=True)
+    depot_dict = {}
+    for i in app_list_path.iterdir():
+        if i.stem.isdecimal() and i.suffix == '.txt':
+            with i.open('r', encoding='utf-8') as f:
+                app_id_ = f.read().strip()
+                depot_dict[int(i.stem)] = None
+                if app_id_.isdecimal():
+                    depot_dict[int(i.stem)] = int(app_id_)
+    for depot_id in depot_id_list:
+        if int(depot_id) not in depot_dict.values():
+            index = max(depot_dict.keys()) + 1 if depot_dict.keys() else 0
+            if index != 0:
+                for i in range(max(depot_dict.keys())):
+                    if i not in depot_dict.keys():
+                        index = i
+                        break
+            with (app_list_path / f'{index}.txt').open('w', encoding='utf-8') as f:
+                f.write(str(depot_id))
+            depot_dict[index] = int(depot_id)
     return True
 
 def get_steam_path():
@@ -228,6 +264,7 @@ def main(app_id):
                 r = requests.get(url,verify=False)
                 if 'tree' in r.json():
                     stool_add([(app_id, 1, "None")])
+                    greenluma_add([app_id])
                     result_list = []
                     with Pool(32) as pool:
                         pool: ThreadPool
@@ -251,7 +288,7 @@ def main(app_id):
             exit()
         except requests.exceptions.RequestException as e:
             log.error(f"An error occurred: {e}")
-    log.error(f'入库失败: {app_id}')
+    log.error(f'入库失败: {app_id}，清单库中可能暂未收录该游戏')
     return False
 
 def app(app_path):
@@ -279,7 +316,9 @@ def app(app_path):
                 if stool_add([(depot_id, '1',
                                depots_config['depots'][depot_id]['DecryptionKey']) for depot_id in
                               depots_config['depots']]):
-                    log.info('导入steamtools成功')
+                    log.info('导入Steamtools Depot配置成功')
+                if greenluma_add([int(i) for i in depots_config['depots'] if i.isdecimal()]):
+                    log.info('导入GreenLuma Depot配置成功')
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-a', '--app-id')
